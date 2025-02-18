@@ -1,5 +1,6 @@
 package com.example.palagrism.service;
 
+import com.example.palagrism.model.TurnitinApiResponse;
 import com.example.palagrism.model.TurnitinSubmission;
 import com.example.palagrism.repository.TurnitinSubmissionRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -35,19 +37,17 @@ public class TurnitinService {
         File savedFile = saveFileLocally(file);
 
         // Step 2: Send file to Turnitin
-        String turnitinResponse = sendFileToTurnitin(savedFile);
+        TurnitinApiResponse apiResponse = sendFileToTurnitin(savedFile);
 
-        // Step 3: Extract plagiarism score
-        Double plagiarismScore = extractPlagiarismScore(turnitinResponse);
-
-        // Step 4: Save submission in MySQL
+        // Step 3: Save submission in MySQL
         TurnitinSubmission submission = new TurnitinSubmission();
         submission.setFileName(file.getOriginalFilename());
         submission.setFileType(file.getContentType());
         submission.setFilePath(savedFile.getAbsolutePath());
-        submission.setTurnitinResponse(turnitinResponse);
-        submission.setPlagiarismScore(plagiarismScore);
-        submission.setOriginalityReportUrl("https://turnitin.com/report/" + submission.getId());
+        submission.setPlagiarismScore(apiResponse.getSimilarityScore());
+        submission.setMatchedSources(apiResponse.getMatchedSources());
+        submission.setHighlightedText(apiResponse.getHighlightedText());
+        submission.setOriginalityReportUrl(apiResponse.getOriginalityReportUrl());
 
         return submissionRepository.save(submission);
     }
@@ -64,17 +64,13 @@ public class TurnitinService {
         return savedFile;
     }
 
-    private String sendFileToTurnitin(File file) {
+    private TurnitinApiResponse sendFileToTurnitin(File file) {
         return webClient.post()
                 .uri(uriBuilder -> uriBuilder.path("/upload").queryParam("api_key", turnitinApiKey).build())
                 .bodyValue(new FileSystemResource(file))
                 .retrieve()
-                .bodyToMono(String.class)
+                .bodyToMono(TurnitinApiResponse.class)
                 .block(); // Blocking call (simpler, but can be made async)
-    }
-
-    private Double extractPlagiarismScore(String response) {
-        return Math.random() * 100; // Placeholder for extracting plagiarism score
     }
 
     public Optional<TurnitinSubmission> getSubmission(Long id) {

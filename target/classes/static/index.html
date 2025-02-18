@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plagiarism Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f8f8f8;
+        }
+        .upload-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 400px;
+        }
+        .drop-area {
+            border: 2px dashed #6c63ff;
+            padding: 30px;
+            background: #f0f0ff;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+        .drop-area:hover {
+            background: #e6e6ff;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+            margin: 10px 0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            width: 0;
+            background: #6c63ff;
+        }
+        .file-name {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        .upload-btn {
+            background: #6c63ff;
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .upload-btn:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="upload-container">
+    <h2>Upload a Document</h2>
+    <div class="drop-area" onclick="document.getElementById('fileInput').click()">
+        <p>Drag & Drop a file or <strong>Browse</strong></p>
+        <p>Supported: PDF, DOCX, TXT</p>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.txt" style="display: none;">
+    <div class="progress-bar"><div class="progress"></div></div>
+    <p class="file-name"></p>
+    <button class="upload-btn" onclick="uploadFile()" disabled>Upload File</button>
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+    let file;
+
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+        file = event.target.files[0];
+        if (file) {
+            document.querySelector('.file-name').textContent = file.name;
+            document.querySelector('.upload-btn').disabled = false;
+        }
+    });
+
+    function uploadFile() {
+        if (!file) return;
+        document.querySelector('.progress').style.width = '0%';
+        document.querySelector('.upload-btn').disabled = true;
+
+        let formData = new FormData();
+        formData.append("file", file);
+
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", "/turnitin/upload", true);
+
+        xhr.upload.onprogress = function(event) {
+            let percent = (event.loaded / event.total) * 100;
+            document.querySelector('.progress').style.width = percent + '%';
+        };
+
+        xhr.onload = function() {
+            if (xhr.status == 200) {
+                let response = JSON.parse(xhr.responseText);
+                document.getElementById("result").innerHTML = `
+                    <p><strong>Plagiarism Score:</strong> ${response.similarityScore.toFixed(2)}%</p>
+                    <p><strong>Originality Report:</strong> <a href="${response.originalityReportUrl}" target="_blank">View Report</a></p>
+                    <p><strong>Matched Sources:</strong></p>
+                    <ul>
+                        ${response.matchedSources.map(source => `<li><a href="${source}" target="_blank">${source}</a></li>`).join("")}
+                    </ul>
+                    <p><strong>Highlighted Plagiarized Text:</strong></p>
+                    <ul>
+                        ${response.highlightedText.map(text => `<li>"${text}"</li>`).join("")}
+                    </ul>
+                `;
+            } else {
+                document.getElementById("result").innerHTML = "<p style='color: red;'>Error uploading file.</p>";
+            }
+            document.querySelector('.upload-btn').disabled = false;
+        };
+
+        xhr.send(formData);
+    }
+</script>
+</body>
+</html>
