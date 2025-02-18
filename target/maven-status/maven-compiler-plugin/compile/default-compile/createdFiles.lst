@@ -1,0 +1,5 @@
+com\example\palagrism\PalagrismApplication.class
+com\example\palagrism\repository\TurnitinSubmissionRepository.class
+com\example\palagrism\service\TurnitinService.class
+com\example\palagrism\controller\TurnitinController.class
+com\example\palagrism\model\TurnitinSubmission.class
